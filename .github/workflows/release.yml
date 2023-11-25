@@ -35,6 +35,6 @@ jobs:
         with:
           name: latest
           tag_name: latest
-          files:
+          files: |
             wsl2-gpg-agent.exe
             wsl2-gpg-agent.exe.sha256sum
