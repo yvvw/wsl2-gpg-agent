@@ -38,11 +38,13 @@ const (
 )
 
 var (
-	gpg                     = flag.String("gpg", "", "gpg mode")
-	sourceGpgConfigBasepath = flag.String("sourceGpgConfigBasepath", "", "gpg config path on windows")
-	ssh                     = flag.Bool("ssh", false, "ssh mode")
-	winssh                  = flag.String("winssh", "", "windows ssh mode")
-	logfilePath             = flag.String("log", "wsl2-gpg-agent.log", "logfile")
+	ssh    = flag.Bool("ssh", false, "ssh mode")
+	winssh = flag.String("winssh", "", "windows ssh mode")
+
+	gpg         = flag.String("gpg", "", "gpg mode")
+	gpgHomePath = flag.String("gpg-home", "", "gpg config path on windows")
+
+	logfilePath = flag.String("log", "", "logfile")
 
 	failureMessage = [...]byte{0, 0, 0, 1, 5}
 )
@@ -50,13 +52,15 @@ var (
 func main() {
 	flag.Parse()
 
-	logfile, err := os.Create(filepath.Clean(*logfilePath))
-	if err != nil {
-		panic(fmt.Sprintf("cannnot open %s: %s", *logfilePath, err.Error()))
-	}
-	defer logfile.Close()
+	if *logfilePath != "" {
+		logfile, err := os.Create(filepath.Clean(*logfilePath))
+		if err != nil {
+			panic(fmt.Sprintf("cannnot open %s: %s", *logfilePath, err.Error()))
+		}
+		defer logfile.Close()
 
-	log.SetOutput(logfile)
+		log.SetOutput(logfile)
+	}
 
 	done := make(chan bool, 1)
 
@@ -71,8 +75,32 @@ func main() {
 		}
 	}()
 
+	if *ssh {
+		go func() {
+			handleSSH(bufio.NewReader(os.Stdin), bufio.NewWriter(os.Stdout), func() {})
+
+			// If for some reason our listener breaks, kill the program
+			done <- true
+		}()
+	}
+
+	if *winssh != "" {
+		pipe, err := createNamedPipe(*winssh)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		go func() {
+			listenLoop(pipe, handleSSH)
+
+			// If for some reason our listener breaks, kill the program
+			done <- true
+		}()
+	}
+
 	if *gpg != "" {
-		sourceBasePath := *sourceGpgConfigBasepath
+		sourceBasePath := *gpgHomePath
 		// fallback to default location if not specified
 		if sourceBasePath == "" {
 			winHomeDir, err := os.UserHomeDir()
@@ -105,30 +133,6 @@ func main() {
 				log.Printf("Could not copy gpg data from win socket to wsl socket: %s", err)
 				return
 			}
-
-			// If for some reason our listener breaks, kill the program
-			done <- true
-		}()
-	}
-
-	if *ssh {
-		go func() {
-			handleSSH(bufio.NewReader(os.Stdin), bufio.NewWriter(os.Stdout), func() {})
-
-			// If for some reason our listener breaks, kill the program
-			done <- true
-		}()
-	}
-
-	if *winssh != "" {
-		pipe, err := createNamedPipe(*winssh)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-
-		go func() {
-			listenLoop(pipe, handleSSH)
 
 			// If for some reason our listener breaks, kill the program
 			done <- true

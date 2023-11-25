@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 'stable'
+
+      - name: Build
+        run: GOOS=windows go build -o wsl2-gpg-agent.exe -ldflags -H=windowsgui wsl2-gpg-agent.go
+
+      - name: Compress
+        uses: crazy-max/ghaction-upx@v2
+        with:
+          version: latest
+          files: wsl2-gpg-agent.exe
+          args: -fq
+
+      - name: Checksum
+        run: sha256sum wsl2-gpg-agent.exe > wsl2-gpg-agent.exe.sha256sum
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: latest
+          tag_name: latest
+          files:
+            wsl2-gpg-agent.exe
+            wsl2-gpg-agent.exe.sha256sum
