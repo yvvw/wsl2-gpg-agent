@@ -33,7 +33,7 @@ main() {
   checkdeps
   case $1 in
   start)
-    if ! start-stop-daemon --pidfile "$PIDFILE" --make-pidfile --background --notify-await --notify-timeout 10 --exec "$0" --start -- foreground; then
+    if ! start-stop-daemon --pidfile "$PIDFILE" --make-pidfile --background --exec "$0" --start -- foreground; then
       die 'failed to start.'
     fi
     ;;
@@ -122,5 +122,5 @@ export GNUPGHOME="$HOME/.gnupg"
 export SSH_AUTH_SOCK="$GNUPGHOME/S.gpg-agent.ssh"
 export GPG_AGENT_SOCK="$GNUPGHOME/S.gpg-agent"
 export GPG_AGENT_EXTRA_SOCK="$GNUPGHOME/S.gpg-agent.extra"
-gpg-agent-relay start
+gpg-agent-relay status >/dev/null || gpg-agent-relay start
 ```

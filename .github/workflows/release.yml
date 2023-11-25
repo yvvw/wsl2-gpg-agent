@@ -3,6 +3,10 @@ name: Release
 on:
   workflow_dispatch:
   push:
+    paths:
+      - "*.go"
+      - "go.mod"
+      - "go.sum"
 
 jobs:
   release:
